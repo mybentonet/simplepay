@@ -5,6 +5,17 @@ Unofficial Python bindings for Simple Pay's API.
 https://www.simplepay.co.za/api-docs/
 
 
+## Installation
+```bash
+$ pipenv install simplepay
+```
+
+Or if you are using pip:
+
+```bash
+$ pip install simplepay
+```
+
 ## Usage
 ```python
 
