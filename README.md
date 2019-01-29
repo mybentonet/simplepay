@@ -17,3 +17,4 @@ print(api.get_employees("client_id"))
 
 ## Documentation
 
+Documentation can be found here: https://cstranex.github.io/simplepay
