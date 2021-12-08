@@ -198,6 +198,17 @@ class SimplePay:
         resp = self.request('/payslips/{}.pdf'.format(payslip_id))
         return resp.content
 
+    def get_calculations(self, employee_id: str) -> List[Dict[str, Any]]:
+        """Get a list of calculations for an employee
+        See: https://www.simplepay.co.za/api-docs/#calcuations
+
+        :param employee_id: The employee id to return the calculation data for
+        :returns: A list of calculations
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        return self.request('/employees/{}/calculations'.format(employee_id)).json()
+
 
 class SimplePayException(Exception):
     """Raised when a resource could not be retrieved"""
