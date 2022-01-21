@@ -209,6 +209,28 @@ class SimplePay:
         """
         return self.request('/employees/{}/calculations'.format(employee_id)).json()
 
+    def get_inherited_calculations(self, employee_id: str) -> List[Dict[str, Any]]:
+        """Get a list of inherited calculations for an employee
+        See: https://www.simplepay.co.za/api-docs/#inherited-calcuations
+
+        :param employee_id: The employee id to return the calculation data for
+        :returns: A list of calculations
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        return self.request('/employees/{}/inherited_calculations'.format(employee_id)).json()
+
+    def get_service_periods(self, employee_id: str) -> List[Dict[str, Any]]:
+        """Get a list of service periods for an employee
+        See: https://www.simplepay.co.za/api-docs/#service-periods
+
+        :param employee_id: The employee id to return the calculation data for
+        :returns: A list of service periods
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        return self.request('/employees/{}/service_periods'.format(employee_id)).json()
+
 
 class SimplePayException(Exception):
     """Raised when a resource could not be retrieved"""
