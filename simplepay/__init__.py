@@ -122,16 +122,14 @@ class SimplePay:
         resp = self.request('/clients/{}/leave_types'.format(client_id))
         return resp.json()
 
-    def get_leave_balances(self, client_id: int, employee_id: int, date: datetime.date) -> List[
-        Tuple[str, str, Decimal]
-    ]:
+    def get_leave_balances(self, client_id: int, employee_id: int, date: datetime.date) -> List:
         """Retrieve a list of leave balances for the given employee.
         See: https://www.simplepay.co.za/api-docs/#leave
 
         :param client_id: A valid client id
         :param employee_id: The employee id to retrieve the balances for
         :param date: The date at which to calculate the leave balances
-        :returns: A list of tuples in the format: (Leave Name, Leave Id, Balance)
+        :returns: A list of dictionaries with keys: (leave_id, leave_name, balance)
         :raises NotFound: If a particular resource could not be found
         :raises SimplePayException: If there was an error in the response
         """
@@ -141,7 +139,10 @@ class SimplePay:
 
         resp = self.request('/employees/{}/leave_balances?date={}'.format(employee_id, date.strftime('%Y-%m-%d')))
         for _id, _balance in resp.json().items():
-            leave_balances.append((leave_types[_id], _id, _balance))
+            leave_balances.append(
+                {'leave_id': _id,
+                 'leave_name': leave_types[_id],
+                 'balance': _balance})
         return leave_balances
 
     def get_leave_days(self, employee_id: str) -> List:
@@ -229,7 +230,7 @@ class SimplePay:
         :raises NotFound: If a particular resource could not be found
         :raises SimplePayException: If there was an error in the response
         """
-        return self.request('/employees/{}/service_periods'.format(employee_id)).json()
+        return [sp['service_period'] for sp in self.request('/employees/{}/service_periods'.format(employee_id)).json()]
 
 
 class SimplePayException(Exception):
