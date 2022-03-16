@@ -61,8 +61,12 @@ class SimplePay:
                 message = response.text
             raise NotFound(message)
         elif not response.ok:
+            json = response.json()
+            print(f"Response: {response} {response.json()} {response.text}")
             try:
-                message = response.json()['message']
+                message = json['message']
+                if 'errors' in json:
+                    message += str(json['errors'])
             except json.decoder.JSONDecodeError:
                 message = response.text
             raise SimplePayException(message)
@@ -150,6 +154,27 @@ class SimplePay:
         for _item in resp.json():
             leave.append(_item[0])
         return leave
+
+    def add_leave_days(self, employee_id: str, type_id: int, leave_days: List[str]) -> Dict:
+        """Add new leave days to employee
+        See: https://www.simplepay.co.za/api-docs/#create-multiple-new-leave-days
+
+        Note: passes None for hours indicating all days are full days
+        
+        :param employee_id: The employee id to add leave days to
+        :param type_id: Internal SimplePay leave type identifier
+        :param leave_days: a list of strings of the format 'YYYY-MM-DD'
+        :returns: dictionary message and leave day IDs on success
+        '"""
+        data = {"dates":
+            [{"date": date, "hours": None, "type_id": int(type_id)}
+             for date in leave_days]
+        }
+        print(f"DATA FOR ADD EMPLOYEE {employee_id}: {data}")
+        resp = self.request('/employees/{}/leave_days/create_multiple'.format(employee_id),
+                            method='POST',
+                            json=data)
+
 
     def get_payslips(self, employee_id: str) -> List[Dict[str, Any]]:
         """Get a list of payslips for an employee
