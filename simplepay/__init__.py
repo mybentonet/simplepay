@@ -182,7 +182,7 @@ class SimplePay:
         :param leave_day_id: The leave day to delete
         :returns: dictionary message on success
         '"""
-        resp = self.request('/leave_days/{}}'.format(leave_day_id),
+        resp = self.request('/leave_days/{}'.format(leave_day_id),
                             method='DELETE')
         return resp.json()
 
