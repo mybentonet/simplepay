@@ -170,11 +170,21 @@ class SimplePay:
             [{"date": date, "hours": None, "type_id": int(type_id)}
              for date in leave_days]
         }
-        print(f"DATA FOR ADD EMPLOYEE {employee_id}: {data}")
         resp = self.request('/employees/{}/leave_days/create_multiple'.format(employee_id),
                             method='POST',
                             json=data)
+        return resp.json()
 
+    def delete_leave_day(self, leave_day_id: int) -> Dict:
+        """Delete existing leave day
+        See: https://www.simplepay.co.za/api-docs/#delete-an-existing-leave-day
+
+        :param leave_day_id: The leave day to delete
+        :returns: dictionary message on success
+        '"""
+        resp = self.request('/leave_days/{}}'.format(leave_day_id),
+                            method='DELETE')
+        return resp.json()
 
     def get_payslips(self, employee_id: str) -> List[Dict[str, Any]]:
         """Get a list of payslips for an employee
