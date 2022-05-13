@@ -17,6 +17,7 @@ https://github.com/cstranex/simplepay
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import logging
 from typing import List, Dict, Tuple, Any
 import json
 import datetime
@@ -72,6 +73,48 @@ class SimplePay:
             raise SimplePayException(message)
 
         return response
+
+    async def request_async(self, resource='/', method='GET', *args, **kwargs) -> Response:
+        """Return a request session with correct headers set.
+
+        :param method: HTTP Method to use
+        :param resource: The API endpoint to request. Must begin with a slash
+        :param args: Arguments that are passed directly to the Request object
+        :returns: A response object
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        from aiohttp import ClientSession
+
+        headers = {}
+        headers['Authorization'] = self.key
+        headers['Content-type'] = 'application/json'
+
+        async with ClientSession(
+            headers = headers,
+        ) as client:
+            async with client.request(method, self._URL + resource, *args, **kwargs) as response:
+                logging.debug(f"Status {response.status} {response.ok}")
+                if response.status == 404:
+                    logging.debug(f"Handling 404")
+
+                    try:
+                        message = await response.json()['message']
+                    except json.decoder.JSONDecodeError:
+                        message = await response.text
+                    raise NotFound(message)
+                elif not response.ok:
+                    json = await response.json()
+                    print(f"Response: {response} {response.json()} {response.text}")
+                    try:
+                        message = json['message']
+                        if 'errors' in json:
+                            message += str(json['errors'])
+                    except json.decoder.JSONDecodeError:
+                        message = response.text
+                    raise SimplePayException(message)
+                response_json = await response.json()
+                return response_json
 
     def get_clients(self) -> List[Dict[str, Any]]:
         """Retrieve a list of clients
@@ -170,7 +213,6 @@ class SimplePay:
             [{"date": date, "hours": None, "type_id": int(type_id)}
              for date in leave_days]
         }
-        print(f"DATA FOR ADD EMPLOYEE {employee_id}: {data}")
         resp = self.request('/employees/{}/leave_days/create_multiple'.format(employee_id),
                             method='POST',
                             json=data)
@@ -203,6 +245,18 @@ class SimplePay:
         resp = self.request('/payslips/{}'.format(payslip_id))
         return resp.json()
 
+    async def get_payslip_async(self, payslip_id: str) -> Dict[str, Any]:
+        """Get a specific payslip
+        See: https://www.simplepay.co.za/api-docs/#get-a-a-specific-payslip-for-an-employee
+
+        :param payslip_id: A payslip id
+        :returns: A dict containing the payslip information
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        response_json = await self.request_async('/payslips/{}'.format(payslip_id))
+        return response_json
+
     def get_payslip_pdf(self, payslip_id: str) -> bytes:
         """Get a payslip PDF
         See: https://www.simplepay.co.za/api-docs/#get-a-a-specific-payslip-for-an-employee
@@ -226,6 +280,17 @@ class SimplePay:
         """
         return self.request('/employees/{}/calculations'.format(employee_id)).json()
 
+    def get_payslip_calculations(self, payslip_id: str) -> List[Dict[str, Any]]:
+        """Get a list of calculations for an payslip
+        See: https://www.simplepay.co.za/api-docs/#calcuations
+
+        :param payslip_id: The payslip id to return the calculation data for
+        :returns: A list of calculations
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        return self.request('/payslips/{}/calculations'.format(payslip_id)).json()
+
     def get_inherited_calculations(self, employee_id: str) -> List[Dict[str, Any]]:
         """Get a list of inherited calculations for an employee
         See: https://www.simplepay.co.za/api-docs/#inherited-calcuations
@@ -236,6 +301,37 @@ class SimplePay:
         :raises SimplePayException: If there was an error in the response
         """
         return self.request('/employees/{}/inherited_calculations'.format(employee_id)).json()
+
+    def create_calculation(self, employee_id: str, calculation: dict) -> Dict[str, Any]:
+        """Create a new calculation for an employee
+        See: https://www.simplepay.co.za/api-docs/#create-update-a-calculation
+
+        :param employee_id: The employee id to return the calculation data for
+        :param calculation: Details of new calculation 
+        :returns: Response to create
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        resp = self.request('/employees/{}/leave_days/create_multiple'.format(employee_id),
+                            method='POST',
+                            json=data)
+
+        return self.request('/employees/{}/inherited_calculations'.format(employee_id)).json()
+
+    def create_payslip_calculation(self, payslip_id: str, calculation: dict) -> Dict[str, Any]:
+        """Create a new calculation for an employee
+        See: https://www.simplepay.co.za/api-docs/#create-update-a-calculation
+
+        :param payslip_id: The payslip id to add the calculation to
+        :param calculation: Details of new calculation 
+        :returns: Response to create
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        resp = self.request('/payslips/{}/calculations'.format(payslip_id),
+                            method='POST',
+                            json=calculation)
+        return resp
 
     def get_service_periods(self, employee_id: str) -> List[Dict[str, Any]]:
         """Get a list of service periods for an employee
