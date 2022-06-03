@@ -17,13 +17,16 @@ https://github.com/cstranex/simplepay
 # CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+import asyncio
 import logging
 from typing import List, Dict, Tuple, Any
 import json
 from json.decoder import JSONDecodeError
 import datetime
 from decimal import Decimal
+import random
 from requests import Request, Session, Response
+import uuid
 
 
 __version__ = '0.1b'
@@ -90,6 +93,13 @@ class SimplePay:
         headers = {}
         headers['Authorization'] = self.key
         headers['Content-type'] = 'application/json'
+
+        # WARNING: TODO: HORRIBLE HACK FOR RATE LIMITING BY SIMPLEPAY
+        id = uuid.uuid4()
+        sleep_time = random.randrange(0, 20) / 10.0
+        logging.info(f"Sleeping {sleep_time} seconds for request ID {id}")
+        await asyncio.sleep(sleep_time)
+        logging.info(f"Finished sleeping for request ID {id}")
 
         async with ClientSession(
             headers = headers,
@@ -239,6 +249,21 @@ class SimplePay:
         leave = []
         resp = self.request('/employees/{}/leave_days'.format(employee_id))
         for _item in resp.json():
+            leave.append(_item[0])
+        return leave
+
+    def get_leave_days_async(self, employee_id: str) -> List:
+        """Get a list of leave dates for a specific employee
+        See: https://www.simplepay.co.za/api-docs/#get-a-list-of-leave-days-for-an-employee
+
+        :param employee_id: The employee id to return the leave days for
+        :returns: a List of leave entries
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        leave = []
+        resp = self.request_async('/employees/{}/leave_days'.format(employee_id))
+        for _item in resp:
             leave.append(_item[0])
         return leave
 
@@ -413,7 +438,7 @@ class SimplePay:
         return self.request('/employees/{}/inherited_calculations'.format(employee_id)).json()
 
     def create_payslip_calculation(self, payslip_id: str, calculation: dict) -> Dict[str, Any]:
-        """Create a new calculation for an employee
+        """Create a new calculation for an payslip
         See: https://www.simplepay.co.za/api-docs/#create-update-a-calculation
 
         :param payslip_id: The payslip id to add the calculation to
