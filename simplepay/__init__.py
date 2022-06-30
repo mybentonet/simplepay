@@ -19,7 +19,8 @@ https://github.com/cstranex/simplepay
 
 import asyncio
 import logging
-from typing import List, Dict, Tuple, Any
+import pprint
+from typing import List, Dict, Optional, Tuple, Any, Union
 import json
 from json.decoder import JSONDecodeError
 import datetime
@@ -96,10 +97,10 @@ class SimplePay:
 
         # WARNING: TODO: HORRIBLE HACK FOR RATE LIMITING BY SIMPLEPAY
         id = uuid.uuid4()
-        sleep_time = random.randrange(0, 20) / 10.0
-        logging.info(f"Sleeping {sleep_time} seconds for request ID {id}")
+        sleep_time = random.randrange(20, 100) / 100.0
+        logging.debug(f"Sleeping {sleep_time} seconds for request ID {id}")
         await asyncio.sleep(sleep_time)
-        logging.info(f"Finished sleeping for request ID {id}")
+        logging.debug(f"Finished sleeping for request ID {id}")
 
         async with ClientSession(
             headers = headers,
@@ -128,7 +129,7 @@ class SimplePay:
                             message += str(json['errors'])
                     except JSONDecodeError:
                         message = response.text
-                    raise SimplePayException(message)
+                    raise SimplePayException(f"Status: {response.status}: {message}")
                 response_json = await response.json()
                 return response_json
 
@@ -184,6 +185,64 @@ class SimplePay:
         """
         resp = await self.request_async('/employees/{}'.format(employee_id))
         return resp['employee']
+
+    def get_leave_accrual_policies(self, client_id: int, start_date: Union[str, datetime.date], end_date: Union[str, datetime.date], leave_types: list, employee_ids: Optional[list[Union[str, int]]] = None) -> Dict[str, str]:
+        """Get a list of leave accumulation policies
+        See: https://simplepay.co.za/api-docs/#variance-report
+
+        :param client_id: A valid client id
+        :param start_date: Beginning of period to check
+        :param end_date: End of period to check
+        :param leave_types: Array of SimplePay IDs for leave types
+        :param employee_ids: optional list of ids
+        :returns: A dictionary mapping leave id types to names
+
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        print({
+                'start_date': start_date, 
+                'end_date': end_date,
+                'wave_ids': None,
+                'employee_ids': None,
+                'leave_types': leave_types,
+                'humanize': True})
+        resp = self.request('/clients/{}/reports/comparison_leave'.format(client_id),
+            method='POST', json={
+                'start_date': start_date, 
+                'end_date': end_date,
+                'wave_ids': None,
+                'employee_ids': None,
+                'leave_types': leave_types,
+                'humanize': False}
+        )
+        return resp.json()
+
+    async def get_leave_accrual_policies_async(self, client_id: int, start_date: Union[str, datetime.date], end_date: Union[str, datetime.date], leave_types: list, employee_ids: Optional[list[Union[str, int]]] = None) -> Dict[str, str]:
+        """Get a list of leave accumulation policies
+        See: https://simplepay.co.za/api-docs/#variance-report
+
+        :param client_id: A valid client id
+        :param start_date: Beginning of period to check
+        :param end_date: End of period to check
+        :param leave_types: Array of SimplePay IDs for leave types
+        :param employee_ids: optional list of ids
+        :returns: A dictionary mapping leave id types to names
+
+        :raises NotFound: If a particular resource could not be found
+        :raises SimplePayException: If there was an error in the response
+        """
+        resp = await self.request_async('/clients/{}/reports/comparison_leave'.format(client_id),
+            method='POST', json={
+                'start_date': start_date, 
+                'end_date': end_date,
+                'wave_ids': None,
+                'employee_ids': None,
+                'leave_types': leave_types,
+                'humanize': False}
+        )
+        return resp
+
 
     def get_leave_types(self, client_id: int) -> Dict[str, str]:
         """Get a list of leave types
@@ -451,6 +510,17 @@ class SimplePay:
                             method='POST',
                             json=calculation)
         return resp
+
+    def delete_calculation(self, calculation_id: str) -> Dict[str, Any]:
+        """Delete a specific calculation
+        See: https://www.simplepay.co.za/api-docs/#delete-a-calculation
+
+        :param calculation_id: The leave day to delete
+        :returns: dictionary message on success
+        '"""
+        resp = self.request('/calculations/{}'.format(calculation_id),
+                            method='DELETE')
+        return resp.json()
 
     def get_service_periods(self, employee_id: str) -> List[Dict[str, Any]]:
         """Get a list of service periods for an employee
